@@ -1,0 +1,25 @@
+browser:
+  engine: "camoufox"
+  headless: false
+  slow_mo: 100
+  viewport:
+    width: 1280
+    height: 800
+  user_agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  locale: "zh-TW"
+  timezone: "Asia/Taipei"
+
+auth:
+  base_url: "https://aistudio.xiaomimimo.com"
+  login_url: "https://aistudio.xiaomimimo.com/open-apis/v1/genLoginUrl"
+  xiaomi_account_base: "https://account.xiaomi.com"
+  global_account_base: "https://global.account.xiaomi.com"
+  sid: "xiaomichatbot"
+  service_id: "xiaomichatbot"
+  
+captcha:
+  wait_timeout: 300
+  
+storage:
+  cookies_dir: "oput"
+  logs_dir: "logs"

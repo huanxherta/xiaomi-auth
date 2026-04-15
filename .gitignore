@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+logs/
+oput/
+
+# Runtime cookies and generated auth data
+cookies/
