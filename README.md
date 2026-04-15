@@ -18,7 +18,6 @@
 ```bash
 cd xiaomi-auth
 pip install -r requirements.txt
-playwright install chromium
 python -m camoufox fetch
 ```
 
@@ -136,8 +135,7 @@ asyncio.run(example())
 
 ## 注意事项
 
-1. 首次使用需要安装 Playwright 浏览器: `playwright install chromium`
-2. 首次使用 Camoufox 需要下载浏览器: `python -m camoufox fetch`
-3. 建议在登录/注册时不要开启无头模式, 方便处理验证码
-4. 批量注册是串行执行，目的是降低风控触发概率
-5. 即使用 Camoufox，也不能保证每次都完全不出现人工验证码
+1. 首次使用 Camoufox 需要下载浏览器: `python -m camoufox fetch`
+2. 建议在登录/注册时不要开启无头模式, 方便处理验证码
+3. 批量注册是串行执行，目的是降低风控触发概率
+4. 即使用 Camoufox，也不能保证每次都完全不出现人工验证码
