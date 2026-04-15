@@ -27,7 +27,16 @@ class RegisterHandler:
 
         register_url = f"{self.config.auth.global_account_base}/fe/service/register?sid={self.config.auth.sid}&_locale=zh_TW&_uRegion=US"
         logger.info(f"Navigate to: {register_url}")
-        await self.page.goto(register_url, wait_until="networkidle", timeout=60000)
+        try:
+            await self.page.goto(
+                register_url, wait_until="domcontentloaded", timeout=60000
+            )
+            await self.page.wait_for_load_state("networkidle", timeout=15000)
+        except Exception as e:
+            logger.warning(f"注册页加载较慢，继续尝试: {e}")
+            if "register" not in self.page.url:
+                await self.page.goto(register_url, wait_until="load", timeout=60000)
+        await self.page.wait_for_timeout(2000)
 
         return True
 
@@ -143,7 +152,11 @@ class RegisterHandler:
 
         if not clicked:
             logger.warning("未自动找到傳送信件按钮，切换人工处理")
-            await self.captcha_handler.wait_for_manual_captcha("点击傳送信件")
+            await self.captcha_handler.wait_for_manual_captcha_until(
+                description="点击傳送信件",
+                stop_texts=["傳送信件", "发送信件"],
+                stop_urls=["service/account", "aistudio.xiaomimimo.com", "authStart"],
+            )
 
         await self.page.wait_for_timeout(3000)
 
@@ -188,6 +201,7 @@ class RegisterHandler:
         logger.info(f"Filling form at: {current_url}")
 
         logger.info("填写邮箱...")
+        email_filled = False
         email_selectors = [
             'input[type="email"]',
             'input[name*="email"]',
@@ -204,23 +218,37 @@ class RegisterHandler:
                     await email_input.click()
                     await email_input.fill(email)
                     logger.info(f"已填入邮箱: {email}")
+                    email_filled = True
                     break
             except Exception:
                 continue
 
+        if not email_filled:
+            raise RuntimeError("未找到邮箱输入框，注册页未正常加载")
+
         await self.page.wait_for_timeout(500)
 
         logger.info("填写密码...")
-        password_inputs = await self.page.query_selector_all('input[type="password"]')
+        password_inputs = await self.page.query_selector_all(
+            'input[type="password"]:visible'
+        )
+        if not password_inputs:
+            password_inputs = await self.page.query_selector_all(
+                'input[type="password"]'
+            )
         logger.debug(f"找到 {len(password_inputs)} 个密码输入框")
 
-        if password_inputs:
-            await password_inputs[0].fill(password)
-            logger.info("已填入密码")
+        if not password_inputs:
+            raise RuntimeError("未找到密码输入框，停止本次注册")
+
+        await password_inputs[0].fill(password)
+        logger.info("已填入密码")
 
         if len(password_inputs) >= 2:
             await password_inputs[1].fill(password)
             logger.info("已填入确认密码")
+        else:
+            raise RuntimeError("未找到确认密码输入框，停止本次注册")
 
         await self.page.wait_for_timeout(500)
 
@@ -228,7 +256,9 @@ class RegisterHandler:
 
         await self.page.wait_for_timeout(500)
 
-        await self._click_submit()
+        clicked = await self._click_submit()
+        if not clicked:
+            raise RuntimeError("未找到注册提交按钮，停止本次注册")
 
     async def _check_agreement(self):
         try:

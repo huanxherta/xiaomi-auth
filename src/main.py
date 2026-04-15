@@ -109,6 +109,47 @@ class XiaomiAuthClient:
         finally:
             await self.mail_client.close()
 
+    async def register_batch_with_temp_email(
+        self,
+        count: int,
+        password: str,
+        jwt_token: str = "12345678",
+        api_url: str = "https://mailfree.hxnb.workers.dev",
+    ) -> list[dict[str, Any]]:
+        results: list[dict[str, Any]] = []
+
+        for index in range(1, count + 1):
+            logger.info(f"开始批量注册第 {index}/{count} 个账号")
+            try:
+                success, email = await self.register_with_temp_email(
+                    password=password,
+                    jwt_token=jwt_token,
+                    api_url=api_url,
+                )
+            except Exception as e:
+                logger.error(f"第 {index} 个账号注册异常: {e}")
+                success, email = False, None
+            result: dict[str, Any] = {
+                "index": index,
+                "success": success,
+                "email": email,
+            }
+
+            if success and email:
+                auth_data = self.load_auth_data(email) or {}
+                auth = auth_data.get("auth", {})
+                result.update(
+                    {
+                        "userId": auth.get("userId"),
+                        "serviceToken": auth.get("serviceToken"),
+                        "xiaomichatbot_ph": auth.get("xiaomichatbot_ph"),
+                    }
+                )
+
+            results.append(result)
+
+        return results
+
     async def _extract_auth_data(self, page) -> Dict[str, Any]:
         logger.info("提取认证数据...")
 
@@ -340,6 +381,20 @@ async def main():
         "--api", default="https://mailfree.hxnb.workers.dev", help="邮箱API URL"
     )
 
+    batch_register_parser = subparsers.add_parser(
+        "register-batch", help="批量使用临时邮箱注册"
+    )
+    batch_register_parser.add_argument(
+        "-n", "--count", type=int, required=True, help="注册数量"
+    )
+    batch_register_parser.add_argument("-p", "--password", required=True, help="密码")
+    batch_register_parser.add_argument(
+        "--jwt", default="12345678", help="邮箱API JWT Token"
+    )
+    batch_register_parser.add_argument(
+        "--api", default="https://mailfree.hxnb.workers.dev", help="邮箱API URL"
+    )
+
     refresh_parser = subparsers.add_parser(
         "refresh-auth", help="用已保存 cookies 刷新认证数据"
     )
@@ -380,6 +435,27 @@ async def main():
                 )
             print(f"{'=' * 50}")
         exit(0 if success else 1)
+
+    elif args.command == "register-batch":
+        results = await client.register_batch_with_temp_email(
+            count=args.count,
+            password=args.password,
+            jwt_token=args.jwt,
+            api_url=args.api,
+        )
+
+        print(f"\n{'=' * 60}")
+        print(f"  批量注册完成: {len(results)} 个")
+        print(f"{'=' * 60}")
+        for item in results:
+            status = "成功" if item.get("success") else "失败"
+            print(f"[{item['index']}] {status} {item.get('email') or 'N/A'}")
+            if item.get("success"):
+                print(f"    userId: {item.get('userId')}")
+                print(f"    xiaomichatbot_ph: {item.get('xiaomichatbot_ph')}")
+
+        success_count = sum(1 for item in results if item.get("success"))
+        exit(0 if success_count == len(results) else 1)
 
     elif args.command == "refresh-auth":
         success = await client.refresh_auth_data(args.account)
